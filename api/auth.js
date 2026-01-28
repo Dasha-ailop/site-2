@@ -1,78 +1,97 @@
-// /api/auth.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
-export default async function handler(req, res) {
-    // CORS заголовки
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+// /api/auth.js - УПРОЩЕННЫЙ РАБОЧИЙ ВАРИАНТ
+module.exports = async (req, res) => {
+    // Включаем CORS
+    res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     
+    // Обрабатываем предварительный CORS запрос
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
     
-    console.log('Auth API called:', req.method, req.url);
+    console.log([AUTH API] ${req.method} ${req.url});
     
-    // Логин
+    // ПРОСТОЙ ЛОГИН - ВСЕГДА РАБОТАЕТ
     if (req.method === 'POST') {
+        // Жестко закодированные учетные данные
+        const VALID_USERNAME = 'admin';
+        const VALID_PASSWORD = 'admin123'; // Измените этот пароль!
+        
         try {
-            const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-            const { username, password } = body;
+            // Парсим тело запроса
+            let body;
+            if (typeof req.body === 'string') {
+                body = JSON.parse(req.body);
+            } else {
+                body = req.body;
+            }
             
-            console.log('Login attempt:', username, password ? '***' : 'empty');
+            const { username, password } = body || {};
             
-            // УКАЖИТЕ ЗДЕСЬ ВАШ ЛОГИН И ПАРОЛЬ
-            const adminUsername = 'admin';
-            const adminPassword = 'password'; // измените на ваш пароль
+            console.log(Login attempt: ${username} / ${password ? '***' : 'empty'});
             
-            if (username === adminUsername && password === adminPassword) {
+            // Простая проверка
+            if (username === VALID_USERNAME && password === VALID_PASSWORD) {
                 // Генерируем токен
-                const token = 'admin-token-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                const token = admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)};
                 
-                console.log('Login successful, token generated');
+                console.log(Login SUCCESS for ${username}, token: ${token.substring(0, 20)}...);
                 
-                return res.status(200).json({ 
-                    success: true, 
-                    token: token
+                return res.status(200).json({
+                    success: true,
+                    token: token,
+                    message: 'Вход выполнен успешно'
                 });
             }
             
-            console.log('Invalid credentials');
-            return res.status(401).json({ 
-                error: 'Неверные учетные данные. Используйте: admin / school123'
+            console.log(Login FAILED for ${username});
+            return res.status(401).json({
+                success: false,
+                error: 'Неверный логин или пароль. Используйте: admin / school123'
             });
             
         } catch (error) {
-            console.error('Login error:', error);
-            return res.status(400).json({ error: 'Неверный формат данных' });
+            console.error('Login parse error:', error);
+            return res.status(400).json({
+                success: false,
+                error: 'Ошибка в данных запроса'
+            });
         }
     }
     
-    // Проверка токена - исправлен URL check
+    // ПРОВЕРКА ТОКЕНА
     if (req.method === 'GET') {
-        // Проверяем, что запрос идет на /api/auth или /api/auth/verify
-        const isVerifyRequest = req.url === '/'  req.url === ''  req.url.includes('verify');
+        const authHeader = req.headers.authorization;
         
-        if (isVerifyRequest) {
-            const authHeader = req.headers.authorization;
-            
-            console.log('Verify token request, header:', authHeader);
-            
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ error: 'Токен не предоставлен' });
-            }
-            
-            const token = authHeader.split(' ')[1];
-            
-            // Принимаем любые токены, начинающиеся с admin-token- или test-token-
-            if (token && (token.startsWith('admin-token-') || token.startsWith('test-token-'))) {
-                console.log('Token is valid');
-                return res.status(200).json({ valid: true });
-            }
-            
-            console.log('Invalid token format:', token);
-            return res.status(401).json({ error: 'Недействительный токен' });
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Токен не предоставлен'
+            });
         }
+        
+        const token = authHeader.split(' ')[1];
+        
+        // Принимаем любой токен, который начинается с 'admin-'
+        if (token && token.startsWith('admin-')) {
+            return res.status(200).json({
+                success: true,
+                valid: true,
+                message: 'Токен действителен'
+            });
+        }
+        
+        return res.status(401).json({
+            success: false,
+            error: 'Недействительный токен'
+        });
     }
     
-    return res.status(404).json({ error: 'Эндпоинт не найден' });
-}
+    // Если метод не поддерживается
+    return res.status(405).json({
+        success: false,
+        error: 'Метод не поддерживается'
+    });
+};
